@@ -31,7 +31,7 @@
 
 //USES THIS ARRAY INSTEAD OF JsonURL
 string JsonUrlDefinition[9] = { 
-
+   
 };
 
 enum JsonUrlSelection 
@@ -51,6 +51,7 @@ enum JsonUrlSelection
   
 
 input JsonUrlSelection JsonUrlType = EURUSD_HARD;
+extern bool LoadFromServer = false;
 input bool DEBUG = false;
 
 extern string signifier = "Vector";
@@ -145,9 +146,16 @@ int OnCalculate(const int rates_total,
    
    double diffHour = (time[0] - m_lastRunTime) / (double)60;
    
-   if (diffHour >= 0)
+   if (diffHour >= 0.3)
    {
       string jsonURL = JsonUrlDefinition[JsonUrlType];
+      
+      if (LoadFromServer)
+      {
+         int replaced=StringReplace(jsonURL, "", "");
+      }
+      
+      Print("JsonURL ", jsonURL);
       m_getData = httpGET(jsonURL);
       
       if (DEBUG)
