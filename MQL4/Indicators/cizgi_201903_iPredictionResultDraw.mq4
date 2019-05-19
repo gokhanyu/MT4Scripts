@@ -121,13 +121,21 @@ string GetTimeFrame(int lPeriod)
 }
 
 
+string GetIndicatorName()
+{
+   string replace = EnumToString(JsonUrlType);
+   StringReplace(replace, "CRAZYNAT_MODEL_", "");
+   StringReplace(replace, "MOON_MODEL_", "");
+   return "MOON WALKER   " + replace;
+}
+
 
 //+------------------------------------------------------------------+
 //| Custom indicator initialization function                         |
 //+------------------------------------------------------------------+
 int OnInit(void)
 {
-   IndicatorShortName("MOON WALKER");
+   IndicatorShortName(GetIndicatorName());
    IndicatorDigits(Digits);
 
    //--- check for input
@@ -172,8 +180,8 @@ int OnCalculate(const int rates_total,
       return(0);
       
    //--- counting from 0 to rates_total
-   ArraySetAsSeries(ExtLineBuffer,false);
-   ArraySetAsSeries(close,false);
+   ArraySetAsSeries(ExtLineBuffer, false);
+   ArraySetAsSeries(close, false);
    
    // first calculation or number of bars was changed
    if(prev_calculated == 0)
@@ -216,6 +224,21 @@ int OnCalculate(const int rates_total,
          Print("Data is ", m_getData);
       }
       
+      DrawWithExistingData(time);
+      
+      m_lastRunTime = time[0];    
+   }
+   else
+   {
+      DrawWithExistingData(time);
+   }
+   
+   return(rates_total);
+}
+
+
+void DrawWithExistingData(const datetime &time[])
+{
       PrepareDateTimeDictionary(time);
       
       ParseJson(time[0]);
@@ -225,18 +248,6 @@ int OnCalculate(const int rates_total,
       PrintFormat("Total array size: %i    PastPrediction: %i    ShiftCount: %i", ArraySize(time), m_pastPredCount, shiftCount);
       
       SetIndexShift(0, shiftCount); //Minus index pulls back data in time, plus index shifts towards future. First parameter is the buffer index
-      
-      m_lastRunTime = time[0];    
-   }
-   else
-   {
-      if (DEBUG)
-      {
-         //Print("Prediction Plot Time Is Not Up!  " + TimeToStr(TimeCurrent(), TIME_DATE|TIME_SECONDS));
-      }
-   }
-   
-   return(rates_total);
 }
 
 
