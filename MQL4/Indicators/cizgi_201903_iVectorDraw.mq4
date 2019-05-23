@@ -8,6 +8,7 @@
 #include <mql4-http.mqh>
 #include "hash.mqh"
 #include "json.mqh"
+#include "arc_account.mqh"
 
 
 #property indicator_minimum -120
@@ -28,29 +29,9 @@
 
 
 
-
-//USES THIS ARRAY INSTEAD OF JsonURL
-string JsonUrlDefinition[9] = { 
-   
-};
-
-enum JsonUrlSelection 
-  {
-   EURUSD_HARD = 0,
-   EURUSD_HARD_AND_SOFT = 1,
-   EURUSD_SOFT = 2,
-   
-   AUDUSD_HARD = 3,
-   AUDUSD_HARD_AND_SOFT = 4,
-   AUDUSD_SOFT = 5,
-   
-   USDTRY_HARD = 6,
-   USDTRY_HARD_AND_SOFT = 7,
-   USDTRY_SOFT = 8
-  };
   
 
-input JsonUrlSelection JsonUrlType = EURUSD_HARD;
+input VectorJsonUrlSelection JsonUrlType = EURUSD_HARD;
 extern bool LoadFromServer = false;
 input bool DEBUG = false;
 
@@ -88,6 +69,12 @@ void deinit() {
    Print("deinit");
 }
 
+string GetIndicatorName()
+{
+   string replace = EnumToString(JsonUrlType);
+   return "VECTOR   " + replace;
+}
+
 
 //+------------------------------------------------------------------+
 //| Custom indicator initialization function                         |
@@ -105,7 +92,7 @@ int OnInit(void)
       Print("iVectorDraw Init hit.");
    }
    
-   IndicatorShortName(signifier);
+   IndicatorShortName(GetIndicatorName());
    IndicatorDigits(Digits);
 
    return(INIT_SUCCEEDED);
@@ -146,13 +133,13 @@ int OnCalculate(const int rates_total,
    
    double diffHour = (time[0] - m_lastRunTime) / (double)60;
    
-   if (diffHour >= 0.3)
+   if (prev_calculated == 0 || diffHour >= 0.3)
    {
-      string jsonURL = JsonUrlDefinition[JsonUrlType];
+      string jsonURL = VectorJsonUrlDefinition[JsonUrlType];
       
       if (LoadFromServer)
       {
-         int replaced=StringReplace(jsonURL, "", "");
+         int replaced=StringReplace(jsonURL, "http://localhost/EveAPI/", VectorAPIServerURL);
       }
       
       Print("JsonURL ", jsonURL);

@@ -10,6 +10,7 @@
 #include <Utils/File.mqh>
 #include <Format/Json.mqh>
 #include "hash-json2.mqh"
+#include "arc_account.mqh"
 
 
 #property indicator_minimum -0.05
@@ -30,43 +31,6 @@
 
 
 
-//&timePeriod=H4
-string JsonUrlDefinition[] = { //timePeriod= is added parametrically
-   
-};
-
-int TimeToAddList[] = {
-   0,
-   -3600,
-   -3600,
-   -3600,
-   -3600,
-   -3600,
-   0,
-   0,
-   0,
-   0,
-   0,
-   0,
-   0,
-   0,
-   0,
-   0,  
-};
-
-enum JsonUrlSelection 
-{
-   TS_TEST,
-   ON_MODEL_20190324,
-   ON_MODEL_20190331,
-   ON_MODEL_20190407_H4,
-   ON_MODEL_20190407_M30,
-   ON_MODEL_20190414_H4,
-   ON_MODEL_20190421_H4,
-   ON_MODEL_20190421_M30,
-   ON_MODEL_20190428_H4,
-   ON_MODEL_20190428_M30,
-};
 
 enum TimeFrames
 {
@@ -75,7 +39,7 @@ enum TimeFrames
 
 
 //--- indicator parameters
-input JsonUrlSelection JsonUrlType = ON_MODEL_20190414_H4;
+input PredictionJsonUrlSelection JsonUrlType = MOON_MODEL_20190414_H4;
 input TimeFrames FileTimePeriod = H4;
 extern bool LoadFromServer = false;
 input datetime StartTime = D'2019.01.01 00:00';
@@ -91,8 +55,9 @@ HashMap<string,int> m_dates;
 int m_pastPredCount;
 int m_futurePredCount;
 int m_predCount;
-static datetime m_lastRunTime;
+static datetime m_lastRunTime = 0;
 datetime m_time0;
+bool m_firstLoad = true;
 
 
 int InpMAPeriod=13;        // Period
@@ -139,10 +104,10 @@ int OnInit(void)
    IndicatorDigits(Digits);
 
    //--- check for input
-   if(InpMAPeriod<2)
-   {
-      return(INIT_FAILED);
-   }
+   //if(InpMAPeriod<2)
+   //{
+   //   return(INIT_FAILED);
+   //}
      
    //--- drawing settings
    SetIndexStyle(0,DRAW_LINE);
@@ -172,13 +137,6 @@ int OnCalculate(const int rates_total,
                 const long &volume[],
                 const int &spread[])
 {
-   //Alert(Period());
-
- 
-   //--- check for bars count
-   if(rates_total<InpMAPeriod-1 || InpMAPeriod<2)
-      return(0);
-      
    //--- counting from 0 to rates_total
    ArraySetAsSeries(ExtLineBuffer, false);
    ArraySetAsSeries(close, false);
@@ -192,16 +150,17 @@ int OnCalculate(const int rates_total,
          TimeToStr(TimeCurrent(), TIME_DATE|TIME_SECONDS), TimeGMTOffset(),  TimeToStr(time[0], TIME_DATE|TIME_SECONDS) );
    }
    
-   double diffHour = (time[0] - m_lastRunTime) / 60;
    
-   if (diffHour > 1)
+   long diffHour = ((long)TimeCurrent() - (long)m_lastRunTime);
+   
+   if (prev_calculated == 0 || m_firstLoad || m_getData == NULL || diffHour > 3600) //1hour
    {
       if (DEBUG)
       {
          Print("Prediction Plot Start:  " + TimeToStr(TimeCurrent(), TIME_DATE|TIME_SECONDS));
       }
    
-      string jsonURL = JsonUrlDefinition[JsonUrlType];
+      string jsonURL = PredictionJsonUrlDefinition[JsonUrlType];
       jsonURL = jsonURL + "&fileTimePeriod=" + GetTimeFrame(Period());
       jsonURL = jsonURL + "&displayTimePeriod=" + EnumToString(FileTimePeriod);
       jsonURL = jsonURL + "&brokerTimeCurrent=" + TimeToStr(TimeCurrent(), TIME_DATE|TIME_SECONDS);
@@ -210,10 +169,9 @@ int OnCalculate(const int rates_total,
       jsonURL = jsonURL + "&timeGMTOffset=" + TimeGMTOffset();
       StringReplace(jsonURL, " ", "_");
       
-      
       if (LoadFromServer)
       {
-         int replaced=StringReplace(jsonURL, "", "");
+         int replaced=StringReplace(jsonURL, "http://localhost/EveAPI/", PredictionAPIServerURL);
       }      
       
       Print("JsonURL ", jsonURL);
@@ -226,11 +184,19 @@ int OnCalculate(const int rates_total,
       
       DrawWithExistingData(time);
       
-      m_lastRunTime = time[0];    
+      m_lastRunTime = TimeCurrent();
+      m_firstLoad = false;
+      //Print(DoubleToStr(diffHour, 7));
+   }
+   else if (diffHour > 600) //10minutes
+   {
+      //Print(DoubleToStr(diffHour, 7));
+      DrawWithExistingData(time);
    }
    else
    {
-      DrawWithExistingData(time);
+      //Print(DoubleToStr(diffHour, 7));
+      //wait;
    }
    
    return(rates_total);
@@ -266,7 +232,7 @@ void PrepareDateTimeDictionary(const datetime &time[])
       }
       else
       {
-         m_dates.set(time[i]+TimeToAddList[JsonUrlType], 1);
+         m_dates.set(time[i]+PredictionTimeToAddList[JsonUrlType], 1);
       }      
    }
 }
@@ -297,11 +263,11 @@ int ParseJson(datetime lastTickTime)
          
          if (jv.isObject()) 
          {
-            Print("String is an JSON object.");
+            if (DEBUG) Print("String is an JSON object.");
         
             JSONObject *jo = jv;
             int jaaCount = jo.getInt("ForecastCount");
-            Print("Got ForecastCount");
+            if (DEBUG) Print("Got ForecastCount");
             
             string forecastStartStr = jo.getString("ForecastStartDate");
             datetime forecastStart = StringToTime(forecastStartStr);
@@ -350,8 +316,10 @@ int ParseJson(datetime lastTickTime)
                while(i < jaaCount);
             }
             
-            
-            Print("End iterating");            
+            if (DEBUG)
+            {
+               Print("End iterating");
+            }           
         }
         else
         {
