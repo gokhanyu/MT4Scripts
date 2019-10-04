@@ -2,17 +2,20 @@
 
 
 //&timePeriod=H4
+//_GMT ile baslayan saati kullanarak adjust eder!
 string PredictionJsonUrlDefinition[] = { //timePeriod= is added parametrically
-   
+
 };
+
 
 int PredictionTimeToAddList[] = {
    0,
-   -3600,
-   -3600,
-   -3600,
-   -3600,
-   -3600,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
    0,
    0,
    0,
@@ -30,11 +33,11 @@ int PredictionTimeToAddList[] = {
 
 enum PredictionJsonUrlSelection 
 {
-   ABC_TEST,
+   
 };
 
 
-string PredictionAPIServerURL = "http://vps3asd.ca/API/";
+string PredictionAPIServerURL = "http://vpsasdasdasd";
 
 //PREDICTION ENDS!
 
@@ -52,7 +55,6 @@ string PredictionAPIServerURL = "http://vps3asd.ca/API/";
 
 //USES THIS ARRAY INSTEAD OF JsonURL
 string VectorJsonUrlDefinition[9] = { 
-
 };
 
 enum VectorJsonUrlSelection 
@@ -71,7 +73,7 @@ enum VectorJsonUrlSelection
   };
 
 
-string VectorAPIServerURL = "http://vps3asd.ca/API/";
+string VectorAPIServerURL = "http://vpsasdasdasd";
 
 
 //VECTOR ENDS
