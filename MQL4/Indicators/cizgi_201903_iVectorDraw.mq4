@@ -35,11 +35,16 @@ input VectorJsonUrlSelection JsonUrlType = EURUSD_HARD;
 extern bool LoadFromServer = false;
 input bool DEBUG = false;
 
-extern string signifier = "Vector";
-extern bool invert = false;
-extern int iWindowIndex = -1;
+extern string IndicatorIdentifier = "VECTOR";
+extern bool InvertChart = false;
+extern int iWindowIndex = -1; 
 extern int iAddScore = 0;
 extern int iTimeCorrection = 2; 
+
+
+//IF Signifier could not be found through windows the index of main window is 0, and 1 is below it etc.. Type the index of the window to display vectors
+//Should be better to call iWindowIndex window number
+//Better to enter window index to reduce conflicts if there is more than one indicator on the window
 
 
 string m_getData;
@@ -55,7 +60,7 @@ int deinit_sub()
    for (int i= obj_total; i>=0; i--) {
       string name= ObjectName(i);
     
-      if ( StringSubstr(name,0,7+StringLen(signifier)) == "[zNly] "+signifier )
+      if ( StringSubstr(name,0,7+StringLen(IndicatorIdentifier)) == "[zNly] "+IndicatorIdentifier )
          ObjectDelete(name);
    }
    
@@ -72,7 +77,7 @@ void deinit() {
 string GetIndicatorName()
 {
    string replace = EnumToString(JsonUrlType);
-   return "VECTOR   " + replace;
+   return IndicatorIdentifier + "   " + replace;
 }
 
 
@@ -118,7 +123,7 @@ int OnCalculate(const int rates_total,
    
    if( iWindowIndex == -1 )
    {
-      iWindowIndex = WindowFind(signifier);
+      iWindowIndex = WindowFind(GetIndicatorName());
       
       if (iWindowIndex == -1)
       {
@@ -221,9 +226,9 @@ int ParseJson(datetime parseTime)
                   datetime timeB = StringToTime(timeBStr);
                         
                   string desc = obje.getString("Desc");
-                  string objId = "[zNly] "+signifier+i;
+                  string objId = "[zNly] "+IndicatorIdentifier+i;
                   
-                  if (invert)
+                  if (InvertChart)
                   {
                      valA = valA * -1;
                      valB = valB * -1;

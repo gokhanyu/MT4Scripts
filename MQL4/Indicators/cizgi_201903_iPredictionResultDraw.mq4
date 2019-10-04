@@ -38,13 +38,28 @@ enum TimeFrames
 };
 
 
+
+
 //--- indicator parameters
 input PredictionJsonUrlSelection JsonUrlType = MOON_MODEL_20190414_H4;
 input TimeFrames FileTimePeriod = H4;
 extern bool LoadFromServer = false;
-input datetime StartTime = D'2019.01.01 00:00';
-input int AddMinutesToTimeDictionary = -1;
-input bool DEBUG = false;
+extern datetime StartTime = D'2019.01.01 00:00';
+extern bool ApplyTimeAdjustment = false;
+extern int AddHoursToTimeDictionary = -1;
+extern int iWindowIndex = -1;
+extern bool DeleteServerCache = false;
+extern bool DeleteClientCache = false;
+extern bool ShortenProcessedMonths = true;
+extern bool DEBUG = false;
+extern string IndicatorIdentifier = "Prediction";
+
+
+
+
+//IF IndicatorIdentifier could not be found through windows the index of main window is 0, and 1 is below it etc.. Type the index of the window to display vectors
+//Should be better to call iWindowIndex window number
+//Better to enter window index to reduce conflicts if there is more than one indicator on the window
 
 
 //--- indicator buffer
@@ -55,7 +70,8 @@ HashMap<string,int> m_dates;
 int m_pastPredCount;
 int m_futurePredCount;
 int m_predCount;
-static datetime m_lastRunTime = 0;
+static datetime m_lastPullTime = 0;
+static datetime m_lastDrawTime = 0;
 datetime m_time0;
 bool m_firstLoad = true;
 
@@ -91,7 +107,10 @@ string GetIndicatorName()
    string replace = EnumToString(JsonUrlType);
    StringReplace(replace, "CRAZYNAT_MODEL_", "");
    StringReplace(replace, "MOON_MODEL_", "");
-   return "MOON WALKER   " + replace;
+   string debugStr = DEBUG ? "DEBUG " : "";
+   debugStr += DeleteClientCache ? " NoCliCache " : "";
+   debugStr += DeleteServerCache ? " NoServCache " : "";
+   return debugStr + "MOON WALKER   " + replace;
 }
 
 
@@ -137,6 +156,16 @@ int OnCalculate(const int rates_total,
                 const long &volume[],
                 const int &spread[])
 {
+   if( iWindowIndex == -1 )
+   {
+      iWindowIndex = WindowFind(GetIndicatorName());
+      
+      if (iWindowIndex == -1)
+      {
+         iWindowIndex = 1;
+      }
+   }
+
    //--- counting from 0 to rates_total
    ArraySetAsSeries(ExtLineBuffer, false);
    ArraySetAsSeries(close, false);
@@ -151,9 +180,10 @@ int OnCalculate(const int rates_total,
    }
    
    
-   long diffHour = ((long)TimeCurrent() - (long)m_lastRunTime);
+   long diffPullHour = ((long)TimeCurrent() - (long)m_lastPullTime);
+   long diffDrawHour = ((long)TimeCurrent() - (long)m_lastDrawTime);
    
-   if (prev_calculated == 0 || m_firstLoad || m_getData == NULL || diffHour > 3600) //1hour
+   if (DeleteClientCache || prev_calculated == 0 || m_firstLoad || m_getData == NULL || diffPullHour > 3600) //1hour
    {
       if (DEBUG)
       {
@@ -161,12 +191,19 @@ int OnCalculate(const int rates_total,
       }
    
       string jsonURL = PredictionJsonUrlDefinition[JsonUrlType];
-      jsonURL = jsonURL + "&fileTimePeriod=" + GetTimeFrame(Period());
-      jsonURL = jsonURL + "&displayTimePeriod=" + EnumToString(FileTimePeriod);
+      jsonURL = jsonURL + "&fileTimePeriod=" + EnumToString(FileTimePeriod);
+      jsonURL = jsonURL + "&displayTimePeriod=" + GetTimeFrame(Period());
       jsonURL = jsonURL + "&brokerTimeCurrent=" + TimeToStr(TimeCurrent(), TIME_DATE|TIME_SECONDS);
       jsonURL = jsonURL + "&brokerLastBarTime=" + TimeToStr(time[0], TIME_DATE|TIME_SECONDS);
       jsonURL = jsonURL + "&machineGMT=" + TimeToStr(TimeGMT(), TIME_DATE|TIME_SECONDS);
       jsonURL = jsonURL + "&timeGMTOffset=" + TimeGMTOffset();
+      jsonURL = jsonURL + "&shorten=" + (ShortenProcessedMonths ? "true" : "false");
+      
+      if (DeleteServerCache)
+      {
+         jsonURL = jsonURL + "&deleteCache=true";
+      }
+      
       StringReplace(jsonURL, " ", "_");
       
       if (LoadFromServer)
@@ -184,11 +221,12 @@ int OnCalculate(const int rates_total,
       
       DrawWithExistingData(time);
       
-      m_lastRunTime = TimeCurrent();
+      m_lastPullTime = TimeCurrent();
+      m_lastDrawTime = TimeCurrent();
       m_firstLoad = false;
       //Print(DoubleToStr(diffHour, 7));
    }
-   else if (diffHour > 600) //10minutes
+   else if (diffDrawHour > 600) //10minutes
    {
       //Print(DoubleToStr(diffHour, 7));
       DrawWithExistingData(time);
@@ -214,6 +252,8 @@ void DrawWithExistingData(const datetime &time[])
       PrintFormat("Total array size: %i    PastPrediction: %i    ShiftCount: %i", ArraySize(time), m_pastPredCount, shiftCount);
       
       SetIndexShift(0, shiftCount); //Minus index pulls back data in time, plus index shifts towards future. First parameter is the buffer index
+      
+      m_lastDrawTime = TimeCurrent();
 }
 
 
@@ -225,14 +265,23 @@ void PrepareDateTimeDictionary(const datetime &time[])
    
    for (int i = 0; i < arraySize; i++)
    {
-      //Print( TimeToStr(time[i]+AddMinutesToTimeDictionary, TIME_DATE|TIME_SECONDS));
-      if (AddMinutesToTimeDictionary != -1)
+      if (i == 0)
       {
-         m_dates.set(time[i]+AddMinutesToTimeDictionary, 1);
+         Print("Before: " + TimeToStr(time[i], TIME_DATE|TIME_SECONDS));
+         
+         if (ApplyTimeAdjustment)
+            Print("After: " + TimeToStr(time[i]+AddHoursToTimeDictionary, TIME_DATE|TIME_SECONDS));
+         else
+            Print("After: " + TimeToStr(time[i]+PredictionTimeToAddList[JsonUrlType]*3600, TIME_DATE|TIME_SECONDS));       
       }
-      else
+            
+      if (ApplyTimeAdjustment)
       {
-         m_dates.set(time[i]+PredictionTimeToAddList[JsonUrlType], 1);
+         m_dates.set(time[i]+AddHoursToTimeDictionary, 1);
+      }
+      else //uses default value
+      {
+         m_dates.set(time[i]+PredictionTimeToAddList[JsonUrlType]*3600, 1); //hour to add 3600 is equal to 1Hour
       }      
    }
 }
@@ -271,7 +320,7 @@ int ParseJson(datetime lastTickTime)
             
             string forecastStartStr = jo.getString("ForecastStartDate");
             datetime forecastStart = StringToTime(forecastStartStr);
-            ObjectCreate("VLINE"+forecastStartStr, OBJ_VLINE, 0, forecastStart, Bid);
+            ObjectCreate("VLINE"+forecastStartStr, OBJ_VLINE, iWindowIndex, forecastStart, Bid);
             
             JSONArray *jaa = jo.getArray("Forecasts");
             
@@ -297,6 +346,8 @@ int ParseJson(datetime lastTickTime)
                      i++;
                      continue;
                   }
+                  
+                  //Print("contains for timeAStr: " + timeAStr);
                   
                   if (m_dates.contains(timeA))
                   {
