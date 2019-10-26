@@ -37,16 +37,27 @@ enum TimeFrames
    UND, MN1, MN, W1, D1, H4, H1, M30, M15, M5, M1
 };
 
+enum NormalizationTypes
+{
+   DontTouch,
+   WeeklyMinMax,  
+   MinMax,
+   None,
+	Gaussian,
+};
+
 
 
 
 //--- indicator parameters
-input PredictionJsonUrlSelection JsonUrlType = MOON_MODEL_20190414_H4;
+input PredictionJsonUrlSelection JsonUrlType = CRAZYNAT_MODEL_D22INVERTED_H4_WeekMinMax;
 input TimeFrames FileTimePeriod = H4;
 extern bool LoadFromServer = false;
 extern datetime StartTime = D'2019.01.01 00:00';
 extern bool ApplyTimeAdjustment = false;
 extern int AddHoursToTimeDictionary = -1;
+//overrides NormalizationType parameter of the WebService 
+extern NormalizationTypes CustomNormalization; 
 extern int iWindowIndex = -1;
 extern bool DeleteServerCache = false;
 extern bool DeleteClientCache = false;
@@ -64,7 +75,7 @@ extern string IndicatorIdentifier = "Prediction";
 
 //--- indicator buffer
 double ExtLineBuffer[];
-string m_getData;
+string m_getData; //careful this is not static and can't be
 HashMap<string,int> m_dates;
 
 int m_pastPredCount;
@@ -197,7 +208,7 @@ int OnCalculate(const int rates_total,
       jsonURL = jsonURL + "&brokerLastBarTime=" + TimeToStr(time[0], TIME_DATE|TIME_SECONDS);
       jsonURL = jsonURL + "&machineGMT=" + TimeToStr(TimeGMT(), TIME_DATE|TIME_SECONDS);
       jsonURL = jsonURL + "&timeGMTOffset=" + TimeGMTOffset();
-      jsonURL = jsonURL + "&shorten=" + (ShortenProcessedMonths ? "true" : "false");
+      jsonURL = jsonURL + "&shorten=" + (ShortenProcessedMonths ? "true" : "false");     
       
       if (DeleteServerCache)
       {
@@ -209,7 +220,25 @@ int OnCalculate(const int rates_total,
       if (LoadFromServer)
       {
          int replaced=StringReplace(jsonURL, "http://localhost/EveAPI/", PredictionAPIServerURL);
-      }      
+      }
+      
+      if (CustomNormalization != DontTouch)
+      {
+         string norm = "&normalizationType=" + EnumToString(CustomNormalization);
+         
+         int normalizationTypeIndex = StringFind(jsonURL, "&normalizationType=", 0);
+         
+         if (normalizationTypeIndex > -1)
+         {
+            int fileFullPathIndex = StringFind(jsonURL, "&fileFullPath=", normalizationTypeIndex);
+            
+            if (fileFullPathIndex > -1)
+            {
+               string replaceStr = StringSubstr(jsonURL, normalizationTypeIndex, fileFullPathIndex-normalizationTypeIndex);
+               int replaced=StringReplace(jsonURL, replaceStr, norm);
+            }
+         }
+      }
       
       Print("JsonURL ", jsonURL);
       m_getData = httpGET(jsonURL);    
