@@ -1,7 +1,24 @@
+//AlgoVectorIndicatorMessaging
+
+string AlgoVectorIndicatorAPIServerURL = "";
+
+string AlgoVectorIndicatorAPIDebugURL = "http://localhost:38506/";
+
 //PREDICTION STARTS!
+
+string PredictionAPIServerURL = "";
+
+
+
+enum PredictionJsonUrlSelection 
+{
+   
+};
+
 
 
 //&timePeriod=H4
+//CONSTRAINT: querystring order. fileFullPath should follow normalizationType=MinMax&fileFullPath=
 //_GMT ile baslayan saati kullanarak adjust eder!
 string PredictionJsonUrlDefinition[] = { //timePeriod= is added parametrically
 
@@ -25,19 +42,21 @@ int PredictionTimeToAddList[] = {
    0,
    0,
    0,
+   0,
    0,  
+   0,
+   0,  
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
 };
 
 
-
-
-enum PredictionJsonUrlSelection 
-{
-   
-};
-
-
-string PredictionAPIServerURL = "http://vpsasdasdasd";
 
 //PREDICTION ENDS!
 
@@ -52,9 +71,14 @@ string PredictionAPIServerURL = "http://vpsasdasdasd";
 
 //VECTOR STARTS
 
+string VectorAPIServerURL = "";
+
+string VectorIndicatorAPIDebugURL = "http://localhost:38506/";
+
 
 //USES THIS ARRAY INSTEAD OF JsonURL
 string VectorJsonUrlDefinition[9] = { 
+
 };
 
 enum VectorJsonUrlSelection 
@@ -71,9 +95,6 @@ enum VectorJsonUrlSelection
    USDTRY_HARD_AND_SOFT = 7,
    USDTRY_SOFT = 8
   };
-
-
-string VectorAPIServerURL = "http://vpsasdasdasd";
 
 
 //VECTOR ENDS

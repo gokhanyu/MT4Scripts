@@ -10,7 +10,8 @@
 #include <Utils/File.mqh>
 #include <Format/Json.mqh>
 #include "hash-json2.mqh"
-#include "arc_account.mqh"
+#include "../shared_connection.mqh"
+#include "../shared_functions.mqh"
 
 
 #property indicator_minimum -0.05
@@ -52,7 +53,7 @@ enum NormalizationTypes
 //--- indicator parameters
 input PredictionJsonUrlSelection JsonUrlType = CRAZYNAT_MODEL_D22INVERTED_H4_WeekMinMax;
 input TimeFrames FileTimePeriod = H4;
-extern bool LoadFromServer = false;
+extern bool LoadFromRemoteServer = false;
 extern datetime StartTime = D'2019.01.01 00:00';
 extern bool ApplyTimeAdjustment = false;
 extern int AddHoursToTimeDictionary = -1;
@@ -62,7 +63,7 @@ extern int iWindowIndex = -1;
 extern bool DeleteServerCache = false;
 extern bool DeleteClientCache = false;
 extern bool ShortenProcessedMonths = true;
-extern bool DEBUG = false;
+extern bool DEBUG_MODE = false;
 extern string IndicatorIdentifier = "Prediction";
 
 
@@ -81,8 +82,8 @@ HashMap<string,int> m_dates;
 int m_pastPredCount;
 int m_futurePredCount;
 int m_predCount;
-static datetime m_lastPullTime = 0;
-static datetime m_lastDrawTime = 0;
+datetime m_lastPullTime = 0;
+datetime m_lastDrawTime = 0;
 datetime m_time0;
 bool m_firstLoad = true;
 
@@ -118,7 +119,7 @@ string GetIndicatorName()
    string replace = EnumToString(JsonUrlType);
    StringReplace(replace, "CRAZYNAT_MODEL_", "");
    StringReplace(replace, "MOON_MODEL_", "");
-   string debugStr = DEBUG ? "DEBUG " : "";
+   string debugStr = DEBUG_MODE ? "DEBUG " : "";
    debugStr += DeleteClientCache ? " NoCliCache " : "";
    debugStr += DeleteServerCache ? " NoServCache " : "";
    return debugStr + "MOON WALKER   " + replace;
@@ -196,7 +197,7 @@ int OnCalculate(const int rates_total,
    
    if (DeleteClientCache || prev_calculated == 0 || m_firstLoad || m_getData == NULL || diffPullHour > 3600) //1hour
    {
-      if (DEBUG)
+      if (DEBUG_MODE)
       {
          Print("Prediction Plot Start:  " + TimeToStr(TimeCurrent(), TIME_DATE|TIME_SECONDS));
       }
@@ -217,7 +218,7 @@ int OnCalculate(const int rates_total,
       
       StringReplace(jsonURL, " ", "_");
       
-      if (LoadFromServer)
+      if (LoadFromRemoteServer)
       {
          int replaced=StringReplace(jsonURL, "http://localhost/EveAPI/", PredictionAPIServerURL);
       }
@@ -243,7 +244,7 @@ int OnCalculate(const int rates_total,
       Print("JsonURL ", jsonURL);
       m_getData = httpGET(jsonURL);    
         
-      if (DEBUG)
+      if (DEBUG_MODE)
       {
          Print("Data is ", m_getData);
       }
@@ -334,18 +335,18 @@ int ParseJson(datetime lastTickTime)
     } 
     else 
     {
-         if (DEBUG)
+         if (DEBUG_MODE)
          {
             Print("Json parsed as string: "+jv.toString());
          }
          
          if (jv.isObject()) 
          {
-            if (DEBUG) Print("String is an JSON object.");
+            if (DEBUG_MODE) Print("String is an JSON object.");
         
             JSONObject *jo = jv;
             int jaaCount = jo.getInt("ForecastCount");
-            if (DEBUG) Print("Got ForecastCount");
+            if (DEBUG_MODE) Print("Got ForecastCount");
             
             string forecastStartStr = jo.getString("ForecastStartDate");
             datetime forecastStart = StringToTime(forecastStartStr);
@@ -361,7 +362,7 @@ int ParseJson(datetime lastTickTime)
                {
                   JSONObject *obje = jaa.getObject(i);
                   
-                  if (DEBUG && i==0)
+                  if (DEBUG_MODE && i==0)
                   {
                      Print("Got the array object");
                   }
@@ -396,7 +397,7 @@ int ParseJson(datetime lastTickTime)
                while(i < jaaCount);
             }
             
-            if (DEBUG)
+            if (DEBUG_MODE)
             {
                Print("End iterating");
             }           

@@ -8,7 +8,8 @@
 #include <mql4-http.mqh>
 #include "hash.mqh"
 #include "json.mqh"
-#include "arc_account.mqh"
+#include "../shared_connection.mqh"
+#include "../shared_functions.mqh"
 
 
 #property indicator_minimum -120
@@ -33,7 +34,7 @@
 
 input VectorJsonUrlSelection JsonUrlType = EURUSD_HARD;
 extern bool LoadFromServer = false;
-input bool DEBUG = false;
+input bool DEBUG_MODE = false;
 
 extern string IndicatorIdentifier = "VECTOR";
 extern bool InvertChart = false;
@@ -92,7 +93,7 @@ int OnInit(void)
    SetIndexStyle(1,DRAW_LINE,0,1);
    SetIndexBuffer(1,b1);
    
-   if (DEBUG)
+   if (DEBUG_MODE)
    {
       Print("iVectorDraw Init hit.");
    }
@@ -131,7 +132,7 @@ int OnCalculate(const int rates_total,
       }
    }
 
-   if (DEBUG)
+   if (DEBUG_MODE)
    {
       Print("Prediction Plot: " + TimeToStr(TimeCurrent(), TIME_DATE|TIME_SECONDS));
    }
@@ -140,17 +141,13 @@ int OnCalculate(const int rates_total,
    
    if (prev_calculated == 0 || diffHour >= 0.3)
    {
-      string jsonURL = VectorJsonUrlDefinition[JsonUrlType];
-      
-      if (LoadFromServer)
-      {
-         int replaced=StringReplace(jsonURL, "http://localhost/EveAPI/", VectorAPIServerURL);
-      }
+      string jsonURL = VectorJsonUrlDefinition[JsonUrlType];     
+      jsonURL = getServerURL(jsonURL, VectorAPIServerURL, VectorIndicatorAPIDebugURL, LoadFromServer, DEBUG_MODE);
       
       Print("JsonURL ", jsonURL);
       m_getData = httpGET(jsonURL);
       
-      if (DEBUG)
+      if (DEBUG_MODE)
       {
          Print("Data is ", m_getData);
       }
@@ -167,7 +164,7 @@ int OnCalculate(const int rates_total,
 
 int ParseJson(datetime parseTime)
 {
-    if (DEBUG)
+    if (DEBUG_MODE)
     {
       Print("Trying to parse JSON..");
     }
@@ -182,14 +179,14 @@ int ParseJson(datetime parseTime)
     } 
     else {
     
-         if (DEBUG)
+         if (DEBUG_MODE)
          {
             Print("Json parsed as string: "+jv.toString());
          }
          
          if (jv.isObject()) {
          
-            if (DEBUG)
+            if (DEBUG_MODE)
             {
                Print("String is an JSON object.");
             }
@@ -198,7 +195,7 @@ int ParseJson(datetime parseTime)
             
             int jaaCount = jo.getInt("VectorCount");
             
-            if (DEBUG)
+            if (DEBUG_MODE)
             {
                Print("Get the VectorCount");
             }
@@ -213,7 +210,7 @@ int ParseJson(datetime parseTime)
                {
                   JSONObject *obje = jaa.getObject(i);
                   
-                  if (DEBUG)
+                  if (DEBUG_MODE)
                   {
                      Print("Get the object");
                   }
@@ -250,7 +247,7 @@ int ParseJson(datetime parseTime)
                   ObjectSet(objId, OBJPROP_STYLE, STYLE_DOT);// Style
                   ObjectSetText(objId,desc,10,"Times New Roman",Green);
 
-                  if (DEBUG)
+                  if (DEBUG_MODE)
                   {
                      Print(timeAStr);
                   }
@@ -261,7 +258,7 @@ int ParseJson(datetime parseTime)
                
             }
             
-            if (DEBUG)
+            if (DEBUG_MODE)
             {
                Print("End iterating");
             }
