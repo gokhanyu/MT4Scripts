@@ -33,14 +33,21 @@
   
 
 input VectorJsonUrlSelection JsonUrlType = EURUSD_HARD;
-extern bool LoadFromServer = false;
+extern bool LoadFromRemoteServer = false;
 input bool DEBUG_MODE = false;
 
-extern string IndicatorIdentifier = "VECTOR";
+extern int iTimeCorrection = 2;
+extern bool ReplaceProbFilter = false;
+extern double MinProbabilityFilter = 66;
+extern string PlnAOrFilter = "";
+extern string PlnBOrFilter = "";
+extern bool ShortenProcessedMonths = true;
+
 extern bool InvertChart = false;
+extern string IndicatorIdentifier = "VECTOR";
 extern int iWindowIndex = -1; 
 extern int iAddScore = 0;
-extern int iTimeCorrection = 2; 
+
 
 
 //IF Signifier could not be found through windows the index of main window is 0, and 1 is below it etc.. Type the index of the window to display vectors
@@ -98,6 +105,11 @@ int OnInit(void)
       Print("iVectorDraw Init hit.");
    }
    
+   if (GLOBAL_OVERRIDE_LOAD_FROM_SERVER)
+   {
+      LoadFromRemoteServer = GLOBAL_LOAD_FROM_SERVER;
+   }
+   
    IndicatorShortName(GetIndicatorName());
    IndicatorDigits(Digits);
 
@@ -108,7 +120,7 @@ int OnInit(void)
   
   
 //+------------------------------------------------------------------+
-//|  MAIN METHOD THAT TRIGGERS (ONCE AT START AND EVERY TICK)                                                  |
+//|  MAIN METHOD THAT TRIGGER (ONCE AFTER THE INIT AND EVERY OTHER TICK)                                                  |
 //+------------------------------------------------------------------+
 int OnCalculate(const int rates_total,
                 const int prev_calculated,
@@ -139,10 +151,32 @@ int OnCalculate(const int rates_total,
    
    double diffHour = (time[0] - m_lastRunTime) / (double)60;
    
-   if (prev_calculated == 0 || diffHour >= 0.3)
+   if (prev_calculated == 0 || diffHour >= 0.5)
    {
       string jsonURL = VectorJsonUrlDefinition[JsonUrlType];     
-      jsonURL = getServerURL(jsonURL, VectorAPIServerURL, VectorIndicatorAPIDebugURL, LoadFromServer, DEBUG_MODE);
+      jsonURL = getServerURL(jsonURL, VectorAPIServerURL, VectorIndicatorAPIDebugURL, LoadFromRemoteServer, DEBUG_MODE);
+      
+      if (ReplaceProbFilter)
+      {
+         string filter = "&minProbabilityFilter=" + DoubleToStr(MinProbabilityFilter);
+         int firstIndex = StringFind(jsonURL, "&minProbabilityFilter=", 0);
+         
+         if (firstIndex > -1)
+         {
+            int fileNamesIndex = StringFind(jsonURL, "&fileNames=", firstIndex);
+            
+            if (fileNamesIndex > -1)
+            {
+               string replaceStr = StringSubstr(jsonURL, firstIndex, fileNamesIndex-firstIndex);
+               int replaced=StringReplace(jsonURL, replaceStr, filter);
+            }
+         }
+      }
+      
+      jsonURL = jsonURL + "&plnAFilter=" + PlnAOrFilter;
+      jsonURL = jsonURL + "&plnBFilter=" + PlnBOrFilter;
+      jsonURL = jsonURL + "&shorten=" + (ShortenProcessedMonths ? "true" : "false");
+       
       
       Print("JsonURL ", jsonURL);
       m_getData = httpGET(jsonURL);

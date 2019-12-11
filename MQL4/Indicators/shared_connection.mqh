@@ -1,3 +1,14 @@
+//GLOBAL VARS
+
+
+//set both to true in the server
+bool GLOBAL_LOAD_FROM_SERVER = false;
+bool GLOBAL_OVERRIDE_LOAD_FROM_SERVER = false;
+
+
+
+
+
 //AlgoVectorIndicatorMessaging
 
 string AlgoVectorIndicatorAPIServerURL = "";
@@ -12,7 +23,7 @@ string PredictionAPIServerURL = "";
 
 enum PredictionJsonUrlSelection 
 {
-   
+   CRAZYNAT_MODEL_XCAMP_H4,
 };
 
 
@@ -26,6 +37,7 @@ string PredictionJsonUrlDefinition[] = { //timePeriod= is added parametrically
 
 
 int PredictionTimeToAddList[] = {
+   0,
    0,
    0,
    0,

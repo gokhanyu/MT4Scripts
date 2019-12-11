@@ -134,6 +134,11 @@ int OnInit(void)
    IndicatorShortName(GetIndicatorName());
    IndicatorDigits(Digits);
 
+   if (GLOBAL_OVERRIDE_LOAD_FROM_SERVER)
+   {
+      LoadFromRemoteServer = GLOBAL_LOAD_FROM_SERVER;
+   }
+
    //--- check for input
    //if(InpMAPeriod<2)
    //{
@@ -147,7 +152,7 @@ int OnInit(void)
 
    //--- indicator buffers mapping
    SetIndexBuffer(0,ExtLineBuffer);
-
+   
    return(INIT_SUCCEEDED);
 }
   
@@ -209,7 +214,7 @@ int OnCalculate(const int rates_total,
       jsonURL = jsonURL + "&brokerLastBarTime=" + TimeToStr(time[0], TIME_DATE|TIME_SECONDS);
       jsonURL = jsonURL + "&machineGMT=" + TimeToStr(TimeGMT(), TIME_DATE|TIME_SECONDS);
       jsonURL = jsonURL + "&timeGMTOffset=" + TimeGMTOffset();
-      jsonURL = jsonURL + "&shorten=" + (ShortenProcessedMonths ? "true" : "false");     
+      jsonURL = jsonURL + "&shortenResult=" + (ShortenProcessedMonths ? "true" : "false");     
       
       if (DeleteServerCache)
       {
@@ -267,6 +272,8 @@ int OnCalculate(const int rates_total,
       //wait;
    }
    
+   DeleteClientCache = false;
+   
    return(rates_total);
 }
 
@@ -300,14 +307,14 @@ void PrepareDateTimeDictionary(const datetime &time[])
          Print("Before: " + TimeToStr(time[i], TIME_DATE|TIME_SECONDS));
          
          if (ApplyTimeAdjustment)
-            Print("After: " + TimeToStr(time[i]+AddHoursToTimeDictionary, TIME_DATE|TIME_SECONDS));
+            Print("After: " + TimeToStr(time[i]+AddHoursToTimeDictionary*3600, TIME_DATE|TIME_SECONDS));
          else
             Print("After: " + TimeToStr(time[i]+PredictionTimeToAddList[JsonUrlType]*3600, TIME_DATE|TIME_SECONDS));       
       }
             
       if (ApplyTimeAdjustment)
       {
-         m_dates.set(time[i]+AddHoursToTimeDictionary, 1);
+         m_dates.set(time[i]+AddHoursToTimeDictionary*3600, 1); //hour to add 3600 is equal to 1Hour
       }
       else //uses default value
       {
@@ -364,7 +371,8 @@ int ParseJson(datetime lastTickTime)
                   
                   if (DEBUG_MODE && i==0)
                   {
-                     Print("Got the array object");
+                     Print("Got the array object from service, here is first time:");
+                     Print(obje.getString("Time"));
                   }
                   
                   double val = obje.getDouble("Val");
