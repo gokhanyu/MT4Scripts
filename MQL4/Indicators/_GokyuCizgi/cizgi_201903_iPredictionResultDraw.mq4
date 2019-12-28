@@ -64,7 +64,7 @@ extern bool DeleteServerCache = false;
 extern bool DeleteClientCache = false;
 extern bool ShortenProcessedMonths = true;
 extern bool DEBUG_MODE = false;
-extern string IndicatorIdentifier = "Prediction";
+extern string IndicatorIdentifier = "1PRED";
 
 
 
@@ -125,6 +125,26 @@ string GetIndicatorName()
    return debugStr + "MOON WALKER   " + replace;
 }
 
+int deinit_sub()
+{
+   int obj_total= ObjectsTotal();
+   
+   for (int i= obj_total; i>=0; i--) {
+      string name= ObjectName(i);
+    
+      if ( StringSubstr(name,0,8+StringLen(IndicatorIdentifier)) == "[zPred] "+IndicatorIdentifier )
+         ObjectDelete(name);
+   }
+   
+   return(0);
+}
+
+
+void deinit() {
+   Comment("");
+   deinit_sub();
+   Print("deinit");
+}
 
 //+------------------------------------------------------------------+
 //| Custom indicator initialization function                         |
@@ -304,12 +324,12 @@ void PrepareDateTimeDictionary(const datetime &time[])
    {
       if (i == 0)
       {
-         Print("Before: " + TimeToStr(time[i], TIME_DATE|TIME_SECONDS));
+         Print("BeforeTimeAdj: " + TimeToStr(time[i], TIME_DATE|TIME_SECONDS));
          
          if (ApplyTimeAdjustment)
-            Print("After: " + TimeToStr(time[i]+AddHoursToTimeDictionary*3600, TIME_DATE|TIME_SECONDS));
+            Print("AfterTimeAdj: " + TimeToStr(time[i]+AddHoursToTimeDictionary*3600, TIME_DATE|TIME_SECONDS));
          else
-            Print("After: " + TimeToStr(time[i]+PredictionTimeToAddList[JsonUrlType]*3600, TIME_DATE|TIME_SECONDS));       
+            Print("AfterTimeAdj: " + TimeToStr(time[i]+PredictionTimeToAddList[JsonUrlType]*3600, TIME_DATE|TIME_SECONDS));       
       }
             
       if (ApplyTimeAdjustment)
@@ -353,11 +373,11 @@ int ParseJson(datetime lastTickTime)
         
             JSONObject *jo = jv;
             int jaaCount = jo.getInt("ForecastCount");
-            if (DEBUG_MODE) Print("Got ForecastCount");
+            PrintFormat("Get the ForecastCount: %i", jaaCount);
             
             string forecastStartStr = jo.getString("ForecastStartDate");
             datetime forecastStart = StringToTime(forecastStartStr);
-            ObjectCreate("VLINE"+forecastStartStr, OBJ_VLINE, iWindowIndex, forecastStart, Bid);
+            ObjectCreate("[zPred] "+IndicatorIdentifier+forecastStartStr, OBJ_VLINE, iWindowIndex, forecastStart, Bid);
             
             JSONArray *jaa = jo.getArray("Forecasts");
             
@@ -369,10 +389,9 @@ int ParseJson(datetime lastTickTime)
                {
                   JSONObject *obje = jaa.getObject(i);
                   
-                  if (DEBUG_MODE && i==0)
+                  if (i==0)
                   {
-                     Print("Got the array object from service, here is first time:");
-                     Print(obje.getString("Time"));
+                     PrintFormat("%s : Got the array object from service, printed first time element.", obje.getString("Time"));
                   }
                   
                   double val = obje.getDouble("Val");

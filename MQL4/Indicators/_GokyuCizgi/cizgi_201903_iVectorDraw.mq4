@@ -42,6 +42,7 @@ extern double MinProbabilityFilter = 66;
 extern string PlnAOrFilter = "";
 extern string PlnBOrFilter = "";
 extern bool ShortenProcessedMonths = true;
+extern double BolderVectorWhenProbabilityLargerThan = 80;
 
 extern bool InvertChart = false;
 extern string IndicatorIdentifier = "VECTOR";
@@ -228,16 +229,13 @@ int ParseJson(datetime parseTime)
             JSONObject *jo = jv;
             
             int jaaCount = jo.getInt("VectorCount");
-            
-            if (DEBUG_MODE)
-            {
-               Print("Get the VectorCount");
-            }
+            PrintFormat("Get the VectorCount: %i", jaaCount);
             
             JSONArray *jaa = jo.getArray("Vectors");
             
             if (jaa.isArray() && jaaCount > 0)
             {
+            
                int index = 0, i=0;
                
                do
@@ -255,6 +253,7 @@ int ParseJson(datetime parseTime)
                   string timeBStr = obje.getString("TimeBStr");
                   datetime timeA = StringToTime(timeAStr);
                   datetime timeB = StringToTime(timeBStr);
+                  double probability = obje.getDouble("Probability");
                         
                   string desc = obje.getString("Desc");
                   string objId = "[zNly] "+IndicatorIdentifier+i;
@@ -266,7 +265,7 @@ int ParseJson(datetime parseTime)
                   }
 
                   ObjectCreate(objId, OBJ_TREND, iWindowIndex, timeA+iTimeCorrection*60*60, 
-                                       valA+iAddScore, timeB+iTimeCorrection*60*60, valB+iAddScore); 
+                                       valA+iAddScore, timeB+iTimeCorrection*60*60, valB+iAddScore);
                   ObjectSet(objId, OBJPROP_RAY, 0);
                   
                   if (valA > valB)
@@ -277,8 +276,17 @@ int ParseJson(datetime parseTime)
                   {
                      ObjectSet(objId, OBJPROP_COLOR, clrGreen);
                   }
-                 
-                  ObjectSet(objId, OBJPROP_STYLE, STYLE_DOT);// Style
+                  
+                  if (probability >= BolderVectorWhenProbabilityLargerThan)
+                  {
+                     ObjectSet(objId, OBJPROP_STYLE, STYLE_SOLID);// Style
+                     ObjectSet(objId, OBJPROP_WIDTH, 4);
+                  }
+                  else
+                  {
+                     ObjectSet(objId, OBJPROP_STYLE, STYLE_DOT);// Style
+                  }                 
+
                   ObjectSetText(objId,desc,10,"Times New Roman",Green);
 
                   if (DEBUG_MODE)
