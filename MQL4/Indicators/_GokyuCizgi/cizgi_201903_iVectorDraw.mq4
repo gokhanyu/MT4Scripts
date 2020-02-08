@@ -32,13 +32,18 @@
 
   
 
-input VectorJsonUrlSelection JsonUrlType = EURUSD_HARD;
+input VectorJsonUrlSelection JsonUrlType = AUDUSD_TRAN_202002LBC_2PERMARUP;
 extern bool LoadFromRemoteServer = false;
 input bool DEBUG_MODE = false;
 
 extern int iTimeCorrection = 2;
 extern bool ReplaceProbFilter = false;
 extern double MinProbabilityFilter = 66;
+extern bool EnableLagFilter = true;
+extern int MaxLag = 11;
+extern int MinOccurance = 0;
+extern bool ShowDescOnPatterns = false;
+
 extern string PlnAOrFilter = "";
 extern string PlnBOrFilter = "";
 extern bool ShortenProcessedMonths = true;
@@ -46,9 +51,13 @@ extern double BolderVectorWhenProbabilityLargerThan = 80;
 
 extern bool InvertChart = false;
 extern string IndicatorIdentifier = "VECTOR";
-extern int iWindowIndex = -1; 
+extern int iWindowIndex = -1;
+extern bool DeleteServerCache = false;
+extern bool DeleteClientCache = false;
 extern int iAddScore = 0;
 
+extern bool DrawVerticalWeekends = true;
+extern int HowManyWeeksForward = 7;
 
 
 //IF Signifier could not be found through windows the index of main window is 0, and 1 is below it etc.. Type the index of the window to display vectors
@@ -116,10 +125,10 @@ int OnInit(void)
 
    return(INIT_SUCCEEDED);
 }
-  
-  
-  
-  
+
+
+
+
 //+------------------------------------------------------------------+
 //|  MAIN METHOD THAT TRIGGER (ONCE AFTER THE INIT AND EVERY OTHER TICK)                                                  |
 //+------------------------------------------------------------------+
@@ -152,7 +161,7 @@ int OnCalculate(const int rates_total,
    
    double diffHour = (time[0] - m_lastRunTime) / (double)60;
    
-   if (prev_calculated == 0 || diffHour >= 0.5)
+   if (DeleteClientCache || prev_calculated == 0 || diffHour >= 0.5)
    {
       string jsonURL = VectorJsonUrlDefinition[JsonUrlType];     
       jsonURL = getServerURL(jsonURL, VectorAPIServerURL, VectorIndicatorAPIDebugURL, LoadFromRemoteServer, DEBUG_MODE);
@@ -174,10 +183,17 @@ int OnCalculate(const int rates_total,
          }
       }
       
+      jsonURL = jsonURL + "&lagFilter=" + (EnableLagFilter ? DoubleToStr(MaxLag, 0) : "500");
+      jsonURL = jsonURL + "&minOccurance=" + DoubleToStr(MinOccurance, 0);
+      
       jsonURL = jsonURL + "&plnAFilter=" + PlnAOrFilter;
       jsonURL = jsonURL + "&plnBFilter=" + PlnBOrFilter;
       jsonURL = jsonURL + "&shorten=" + (ShortenProcessedMonths ? "true" : "false");
-       
+      
+      if (DeleteServerCache)
+      {
+         jsonURL = jsonURL + "&deleteCache=true";
+      }
       
       Print("JsonURL ", jsonURL);
       m_getData = httpGET(jsonURL);
@@ -188,6 +204,11 @@ int OnCalculate(const int rates_total,
       }
       
       ParseJson(time[0]);
+      
+      if (DrawVerticalWeekends)
+      {
+         DrawVerticalWeekends();
+      }
 
       m_lastRunTime = time[0];    
    }
@@ -254,9 +275,13 @@ int ParseJson(datetime parseTime)
                   datetime timeA = StringToTime(timeAStr);
                   datetime timeB = StringToTime(timeBStr);
                   double probability = obje.getDouble("Probability");
+                  double lag = obje.getDouble("Lag");
+                  double occurance = obje.getDouble("Occurance");
                         
-                  string desc = obje.getString("Desc");
-                  string objId = "[zNly] "+IndicatorIdentifier+i;
+                  string patternDesc = obje.getString("Desc");
+                  string patternName = obje.getString("Name") + " c" + DoubleToStr(occurance,0)+ " a" + DoubleToStr(lag,0);
+                  string pattern = ShowDescOnPatterns ? patternDesc : patternName;
+                  string objId = "[zNly] "+IndicatorIdentifier+DoubleToStr(i,0);
                   
                   if (InvertChart)
                   {
@@ -287,7 +312,7 @@ int ParseJson(datetime parseTime)
                      ObjectSet(objId, OBJPROP_STYLE, STYLE_DOT);// Style
                   }                 
 
-                  ObjectSetText(objId,desc,10,"Times New Roman",Green);
+                  ObjectSetText(objId,pattern,10,"Times New Roman",Green);
 
                   if (DEBUG_MODE)
                   {
@@ -312,7 +337,6 @@ int ParseJson(datetime parseTime)
                ja.getObject(0).getString(1, sm);
                Print(sm);
                Print("not object");
-               
             }
         delete jv;
         
@@ -322,4 +346,29 @@ int ParseJson(datetime parseTime)
     return(0);
 }
 
+void DrawVerticalWeekends()
+{
+  int P = Period();
+  if (P > PERIOD_D1) return;
 
+  int iteration = HowManyWeeksForward * 7;
+  
+  datetime current = GetTodaysDate()-6*24*60*60;
+
+  for(int i=0; i < iteration ; i++)
+  {
+      //draw only monday and sat.. (0 means Sunday,1,2,3,4,5,6)
+      if (TimeDayOfWeek(current) == 1)
+      {
+         string lineName = "[zNly] "+IndicatorIdentifier+"W"+DoubleToStr(i,0);
+         DrawVerticalDayLine(lineName, "                     Monday", current, Green, iWindowIndex);
+      }
+      else if (TimeDayOfWeek(current) == 6)
+      {
+         string lineName = "[zNly] "+IndicatorIdentifier+"W"+DoubleToStr(i,0);
+         DrawVerticalDayLine(lineName, "                                     Saturday", current, Red, iWindowIndex);
+      }
+      
+      current += CONST_ONE_DAY;
+  }
+}
